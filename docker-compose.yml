@@ -1,0 +1,25 @@
+# Prototype phase: only the database runs in Docker.
+# The Next.js app runs directly on the Mac via `npm run dev`.
+# On the homelab, this file gains `app` and `caddy` services (deployment-config
+# change only — no application code changes required).
+services:
+  db:
+    image: postgres:16
+    container_name: media-tracker-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: media
+      POSTGRES_PASSWORD: media_dev_password
+      POSTGRES_DB: media_tracker
+    ports:
+      - "5432:5432"
+    volumes:
+      - media_tracker_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U media -d media_tracker"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  media_tracker_pgdata:

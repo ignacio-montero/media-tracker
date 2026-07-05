@@ -1,0 +1,77 @@
+// Media Tracker — data model (see media-tracker-spec.md §4).
+// Prisma 7: datasource URL lives in prisma.config.ts (reads DATABASE_URL).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  entries             Entry[]
+  recommendationCache RecommendationCache?
+}
+
+enum MediaType {
+  book
+  tv
+  movie
+}
+
+enum EntryStatus {
+  want
+  in_progress
+  completed
+  dropped
+}
+
+model Entry {
+  id          String      @id @default(cuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  mediaType   MediaType
+  externalId  String? // TMDB / Open Library id when matched
+  creator     String? // author / director
+  year        Int?
+  genres      String[]    @default([])
+  status      EntryStatus @default(want)
+  rating      Int? // 1–5, only meaningful when completed
+  notes       String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  completedAt DateTime? // set when status transitions to completed
+
+  @@index([userId])
+  @@index([userId, mediaType])
+  @@index([userId, status])
+}
+
+model RecommendationCache {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  generatedAt DateTime @default(now())
+  suggestions Json // array of { title, mediaType, reason }
+}
+
+// Reference data: "The Greatest Books of All Time" (thegreatestbooks.org, top 500).
+// Global, not user-scoped. Used for reading-goal progress + list-based recs.
+model GreatBook {
+  rank            Int     @id // 1..500 (Position)
+  title           String
+  author          String
+  normalizedTitle String // lowercased, punctuation/articles stripped — for matching
+  year            Int?
+  score           Int?
+
+  @@index([normalizedTitle])
+}
