@@ -10,7 +10,7 @@ import {
 } from "@/lib/display";
 import { MEDIA_TYPES, ENTRY_STATUSES } from "@/lib/validation";
 import type { MediaType, EntryStatus } from "@/generated/prisma/enums";
-import { deleteEntryAction } from "./actions";
+import { DeleteEntryButton } from "@/components/DeleteEntryButton";
 
 const isMediaType = (v: string): v is MediaType =>
   (MEDIA_TYPES as readonly string[]).includes(v);
@@ -156,15 +156,7 @@ export default async function LibraryPage({
                 >
                   Edit
                 </Link>
-                <form action={deleteEntryAction}>
-                  <input type="hidden" name="id" value={e.id} />
-                  <button
-                    type="submit"
-                    className="rounded-lg border border-red-200 px-3 py-1.5 text-sm text-red-600 transition hover:bg-red-50 dark:border-red-900/50 dark:hover:bg-red-950/40"
-                  >
-                    Delete
-                  </button>
-                </form>
+                <DeleteEntryButton id={e.id} title={e.title} />
               </div>
             </li>
           ))}

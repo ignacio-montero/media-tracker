@@ -64,6 +64,84 @@ function buildHistorySummary(
 }
 
 /**
+ * Call Gemini once and parse/validate its JSON into suggestions.
+ * Returns [] when the model gives back nothing usable so the caller can retry.
+ */
+async function callGeminiOnce(
+  ai: GoogleGenAI,
+  prompt: string,
+): Promise<Suggestion[]> {
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: prompt,
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            title: { type: Type.STRING },
+            mediaType: { type: Type.STRING, enum: ["book", "tv", "movie"] },
+            reason: { type: Type.STRING },
+          },
+          required: ["title", "mediaType", "reason"],
+          propertyOrdering: ["title", "mediaType", "reason"],
+        },
+      },
+    },
+  });
+
+  const text = response.text;
+  if (!text) return [];
+
+  let parsed: Suggestion[];
+  try {
+    parsed = JSON.parse(text) as Suggestion[];
+  } catch {
+    return [];
+  }
+
+  return parsed
+    .filter(
+      (s) =>
+        s &&
+        typeof s.title === "string" &&
+        ["book", "tv", "movie"].includes(s.mediaType) &&
+        typeof s.reason === "string",
+    )
+    .slice(0, 5);
+}
+
+/**
+ * Request suggestions from Gemini, retrying once if the first call comes back
+ * empty/unparseable. Gemini occasionally returns an empty response transiently;
+ * a single retry turns that user-facing dead-end into a brief extra wait.
+ *
+ * Note: a persistently empty result now THROWS (surfaced to the user as an
+ * error) and is never cached. This differs from the pre-retry behavior, which
+ * cached an empty `[]` as a silent success — we'd rather error and let the user
+ * retry than persist an empty recommendation set. The retry reuses the same
+ * prompt with no backoff, so it only helps transient emptiness, not
+ * deterministic failures (over-long prompt, safety filter); those cost a second
+ * call and still error.
+ */
+async function requestSuggestions(
+  ai: GoogleGenAI,
+  prompt: string,
+): Promise<Suggestion[]> {
+  const first = await callGeminiOnce(ai, prompt);
+  if (first.length > 0) return first;
+
+  const retry = await callGeminiOnce(ai, prompt);
+  if (retry.length > 0) return retry;
+
+  throw new Error(
+    "The recommendation service returned no suggestions. Please try again.",
+  );
+}
+
+/**
  * Generate 5 recommendations from the user's own completed history via Gemini,
  * then cache them. Only called on explicit user request. Requires GEMINI_API_KEY.
  */
@@ -153,46 +231,7 @@ ${summary}`;
   }
 
   const ai = new GoogleGenAI({ apiKey });
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: prompt,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.ARRAY,
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            title: { type: Type.STRING },
-            mediaType: { type: Type.STRING, enum: ["book", "tv", "movie"] },
-            reason: { type: Type.STRING },
-          },
-          required: ["title", "mediaType", "reason"],
-          propertyOrdering: ["title", "mediaType", "reason"],
-        },
-      },
-    },
-  });
-
-  const text = response.text;
-  if (!text) throw new Error("The recommendation service returned no result.");
-
-  let parsed: Suggestion[];
-  try {
-    parsed = JSON.parse(text) as Suggestion[];
-  } catch {
-    throw new Error("Could not parse recommendations. Please try again.");
-  }
-
-  const suggestions = parsed
-    .filter(
-      (s) =>
-        s &&
-        typeof s.title === "string" &&
-        ["book", "tv", "movie"].includes(s.mediaType) &&
-        typeof s.reason === "string",
-    )
-    .slice(0, 5);
+  const suggestions = await requestSuggestions(ai, prompt);
 
   await prisma.recommendationCache.upsert({
     where: { userId },

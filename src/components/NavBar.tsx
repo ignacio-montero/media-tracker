@@ -11,8 +11,8 @@ const links = [
 export function NavBar({ email }: { email: string }) {
   return (
     <header className="border-b border-black/10 bg-white/80 backdrop-blur dark:border-white/10 dark:bg-neutral-900/80">
-      <nav className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-        <div className="flex items-center gap-6">
+      <nav className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
           <Link href="/dashboard" className="font-semibold">
             📚 Media Tracker
           </Link>

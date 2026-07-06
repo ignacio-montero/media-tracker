@@ -60,19 +60,34 @@ If you're on a fresh clone/machine, copy `.env.example` to `.env` and fill in
 those four values (see CLAUDE.md's "Environment" section for what each one
 does and where to get the API keys).
 
+## v1 polish pass (2026-07-06)
+
+A polish pass closed the two known loose ends and smoothed a few UX edges. All
+changes verified live and against a clean `npm run build`:
+
+- **Rec empty-response flakiness — fixed.** `src/lib/recommendations.ts` now
+  retries the Gemini call once when it comes back empty/unparseable
+  (`requestSuggestions` / `callGeminiOnce`), so "Generate" no longer dead-ends
+  on a transient empty response. **Behavior change:** a *persistently* empty
+  result now surfaces as an error and is **not** cached (the old code cached an
+  empty `[]` as a silent success). The retry reuses the same prompt with no
+  backoff, so it only rescues transient emptiness, not deterministic failures.
+- **2017 count "gap" — resolved, not a bug.** The source RTF lists exactly 39
+  books under its "2017 (40)" header; the ingest captured all 39 correctly. The
+  "(40)" is a miscount in the demo user's own document, not a parser defect. No code
+  change.
+- **Delete confirmation added.** Library delete now asks before removing an
+  entry (`src/components/DeleteEntryButton.tsx`) — deletion is irreversible.
+  Trade-off (accepted): this is a `"use client"` component, so the confirm guard
+  is JS-dependent — deliberate, since the app already assumes JS.
+- **Mobile nav wraps.** `NavBar` no longer overflows horizontally on narrow
+  (~375px) screens; the brand/links/sign-out wrap instead.
+
 ## What's left
 
-Nothing blocking — the app is usable end-to-end today. Two small loose ends
-and one deliberate deferral:
+Nothing blocking — the app is usable end-to-end today. One deliberate deferral:
 
-1. **Minor data-quality gap:** the demo user's ingested 2017 count is 39 vs. the
-   source list's own stated 40 — one line likely didn't parse cleanly. Not
-   investigated; low priority since it's a single book in one year.
-2. **Minor flakiness:** one list-constrained recommendation generation
-   returned instantly with no result (looked like an empty/transient Gemini
-   response). A retry succeeded immediately. Only seen once — if it recurs,
-   the fix is a simple retry-once in `src/lib/recommendations.ts`.
-3. **Deliberately deferred: homelab deployment.** Docker Compose currently
+1. **Deliberately deferred: homelab deployment.** Docker Compose currently
    only runs Postgres; the Next.js app itself runs directly via `npm run dev`.
    Moving to the Mini PC homelab means adding `app` and `caddy` services to
    `docker-compose.yml` and setting up Tailscale for remote access — this was

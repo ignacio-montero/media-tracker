@@ -79,11 +79,23 @@ All spec MVP features are built and pass a clean `npm run build`.
 
 ### Remaining before "done"
 - (Later) homelab Docker Compose `app`+`caddy` services; Tailscale.
-- Minor: the demo user's 2017 ingested count is 39 vs. the source list's stated 40 —
-  one line likely didn't parse a date cleanly. Not investigated.
-- Minor: one list-constrained recommendation generation returned instantly with
-  no result (looked like a transient/empty Gemini response); a retry succeeded.
-  Only seen once — watch for recurrence, add a retry if it does.
+
+### v1 polish pass (2026-07-06) — done
+- **Rec retry-once:** `generateRecommendations` now calls Gemini via
+  `requestSuggestions` (`callGeminiOnce` × up to 2), retrying once on an
+  empty/unparseable response before erroring. Fixes the occasional "Generate
+  returns nothing" dead-end. Note the semantic change: a *persistently* empty
+  result now throws and is **not** cached (old code cached `[]` as success);
+  the retry has no backoff so it only rescues transient emptiness.
+- **2017 count resolved:** the source RTF (`reading-list.rtf`, git-ignored)
+  lists 39 books under its "2017 (40)" header — the ingest is correct; the
+  "(40)" is a source miscount, not a parser bug. No code change. (Caveat: the
+  RTF isn't in version control, so this is only re-verifiable from the local
+  copy — see `scripts/ingest-books.ts` parse rules if questioned again.)
+- **Delete confirmation:** library delete goes through `DeleteEntryButton`
+  (client `confirm()` guard) since deletion is irreversible. Trade-off: the
+  guard is JS-dependent (`"use client"`) — accepted, the app assumes JS.
+- **Mobile nav:** `NavBar` wraps instead of overflowing on ~375px screens.
 
 ### More app structure (added since auth)
 - `src/lib/search/` — `openlibrary.ts`, `tmdb.ts`, `types.ts`; `/api/search` route.
