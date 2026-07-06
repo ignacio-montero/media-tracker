@@ -127,26 +127,38 @@ export default async function GreatBooksPage() {
           )}
         </div>
 
-        {/* Next up (highest-ranked unread) */}
+        {/* Next up — personalized picks from the list */}
         <div className="rounded-2xl border border-black/10 bg-white p-6 dark:border-white/10 dark:bg-neutral-900">
-          <h2 className="mb-4 text-sm font-medium text-neutral-500">
-            Next up — highest-ranked you haven’t read
+          <h2 className="mb-1 text-sm font-medium text-neutral-500">
+            Next up — picked for your taste
           </h2>
-          <ul className="space-y-2 text-sm">
-            {p.nextUp.map((b) => (
-              <li key={b.rank} className="flex gap-3">
-                <span className="w-10 shrink-0 tabular-nums text-neutral-400">
-                  #{b.rank}
-                </span>
-                <span>
-                  <span className="font-medium">{b.title}</span>{" "}
-                  <span className="text-neutral-500">— {b.author}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
+          <p className="mb-4 text-xs text-neutral-400">
+            Unread list books matched to the authors and eras you read most.
+          </p>
+          {p.nextUp.length === 0 ? (
+            <p className="text-sm text-neutral-400">
+              You’ve read every book on the list — nothing left to suggest!
+            </p>
+          ) : (
+            <ul className="space-y-3 text-sm">
+              {p.nextUp.map((b) => (
+                <li key={b.rank} className="flex gap-3">
+                  <span className="w-10 shrink-0 tabular-nums text-neutral-400">
+                    #{b.rank}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="font-medium">{b.title}</span>{" "}
+                    <span className="text-neutral-500">— {b.author}</span>
+                    <span className="mt-0.5 block text-xs text-neutral-400">
+                      {b.reason}
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
           <p className="mt-4 text-xs text-neutral-400">
-            Want picks matched to your taste? Try{" "}
+            Want AI-generated picks with fuller reasoning? Try{" "}
             <Link href="/recommendations" className="underline">
               For You
             </Link>{" "}

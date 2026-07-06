@@ -78,3 +78,23 @@ Notable decisions and their rationale, most recent last.
 - **Structured genre + gender are additive to the schema; movies/TV keep
   freeform TMDB genres** — avoids reworking the search-import path and keeps the
   change focused on the book-heavy library.
+
+## Great Books "Next up" personalization (2026-07-06)
+
+- **"Next up" is a deterministic taste-match, not an LLM call** — it ranks
+  unread list books by author affinity (books read by the same author, boosted
+  by ratings) + publication-era match, with list rank as a small tiebreaker.
+  Chosen over reusing the Gemini list-recommendation because "Next up" renders
+  on every page load, and calling Gemini there would break the standing
+  explicit-trigger/cached cost-control rule. Free, instant, explainable, and
+  cold-start-safe (no history → collapses to acclaim/rank order, the old
+  behavior). Logic is the pure, unit-tested `rankNextUp` in `src/lib/greatbooks.ts`.
+- **Author matching keys on first-initial + surname** (e.g. "z smith") for
+  grouping, but the "you've read N by X" reason is only asserted when that key
+  resolves to a single distinct name (exact match, or one format/spelling
+  variant) — a genuine collision (Anne vs Antony vs Anita Rice) grants no author
+  credit and falls back to an era/acclaim reason, so the panel never misstates
+  what you've read. Library `creator` strings are reduced to their **first
+  author** before keying (drops co-authors/translators like
+  "Tolstoy, Louise Maude"). The Gemini list-recommendation ("For You") remains
+  the higher-quality, on-demand option.
