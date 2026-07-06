@@ -1,9 +1,16 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 import type { EntryFormState } from "@/app/(app)/library/actions";
 import { MEDIA_TYPES, ENTRY_STATUSES } from "@/lib/validation";
+import {
+  CATEGORY_LABELS,
+  GENDER_VALUES,
+  GENDER_LABELS,
+  subgenresFor,
+  type GenreCategory,
+} from "@/lib/taxonomy";
 
 export type EntryFormValues = {
   title?: string;
@@ -16,6 +23,10 @@ export type EntryFormValues = {
   rating?: number | null;
   notes?: string | null;
   completedAt?: string | null; // YYYY-MM-DD
+  // v1.1 — books-only metadata
+  authorGender?: string | null;
+  genreCategory?: string | null;
+  subgenres?: string[];
 };
 
 const MEDIA_LABELS: Record<string, string> = {
@@ -49,6 +60,25 @@ export function EntryForm({
     undefined,
   );
 
+  const [mediaType, setMediaType] = useState(initial?.mediaType ?? "book");
+  const [genreCategory, setGenreCategory] = useState(
+    initial?.genreCategory ?? "",
+  );
+  const [subgenres, setSubgenres] = useState<string[]>(
+    initial?.subgenres ?? [],
+  );
+
+  const isBook = mediaType === "book";
+  const subgenreOptions = genreCategory
+    ? subgenresFor(genreCategory as GenreCategory)
+    : [];
+
+  const toggleSubgenre = (s: string) => {
+    setSubgenres((prev) =>
+      prev.includes(s) ? prev.filter((v) => v !== s) : [...prev, s],
+    );
+  };
+
   return (
     <form action={formAction} className="space-y-4">
       <div>
@@ -72,7 +102,8 @@ export function EntryForm({
           <select
             id="mediaType"
             name="mediaType"
-            defaultValue={initial?.mediaType ?? "book"}
+            value={mediaType}
+            onChange={(e) => setMediaType(e.target.value)}
             className={inputClass}
           >
             {MEDIA_TYPES.map((t) => (
@@ -129,18 +160,98 @@ export function EntryForm({
         </div>
       </div>
 
-      <div>
-        <label htmlFor="genres" className={labelClass}>
-          Genres <span className="text-neutral-400">(comma-separated)</span>
-        </label>
-        <input
-          id="genres"
-          name="genres"
-          defaultValue={initial?.genres?.join(", ") ?? ""}
-          placeholder="Sci-fi, Thriller"
-          className={inputClass}
-        />
-      </div>
+      {isBook ? (
+        <div className="space-y-4 rounded-lg border border-black/10 p-3 dark:border-white/10">
+          <p className="text-xs text-neutral-400">
+            Book metadata — used for filtering & dashboard breakdowns.
+          </p>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="authorGender" className={labelClass}>
+                Author gender
+              </label>
+              <select
+                id="authorGender"
+                name="authorGender"
+                defaultValue={initial?.authorGender ?? "unknown"}
+                className={inputClass}
+              >
+                {GENDER_VALUES.map((g) => (
+                  <option key={g} value={g}>
+                    {GENDER_LABELS[g]}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="genreCategory" className={labelClass}>
+                Category
+              </label>
+              <select
+                id="genreCategory"
+                name="genreCategory"
+                value={genreCategory}
+                onChange={(e) => {
+                  setGenreCategory(e.target.value);
+                  setSubgenres([]);
+                }}
+                className={inputClass}
+              >
+                <option value="">Uncategorized</option>
+                {(Object.keys(CATEGORY_LABELS) as GenreCategory[]).map(
+                  (c) => (
+                    <option key={c} value={c}>
+                      {CATEGORY_LABELS[c]}
+                    </option>
+                  ),
+                )}
+              </select>
+            </div>
+          </div>
+
+          {subgenreOptions.length > 0 && (
+            <div>
+              <span className={labelClass}>Subgenres</span>
+              <div className="flex flex-wrap gap-2">
+                {subgenreOptions.map((s) => {
+                  const active = subgenres.includes(s);
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => toggleSubgenre(s)}
+                      className={`rounded-full px-3 py-1 text-sm transition ${
+                        active
+                          ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900"
+                          : "border border-black/15 hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/10"
+                      }`}
+                    >
+                      {s}
+                    </button>
+                  );
+                })}
+              </div>
+              {/* Mirror selection into hidden inputs so it submits with the form */}
+              {subgenres.map((s) => (
+                <input key={s} type="hidden" name="subgenres" value={s} />
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div>
+          <label htmlFor="genres" className={labelClass}>
+            Genres <span className="text-neutral-400">(comma-separated)</span>
+          </label>
+          <input
+            id="genres"
+            name="genres"
+            defaultValue={initial?.genres?.join(", ") ?? ""}
+            placeholder="Sci-fi, Thriller"
+            className={inputClass}
+          />
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4">
         <div>

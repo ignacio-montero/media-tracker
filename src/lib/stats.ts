@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
-import type { MediaType } from "@/generated/prisma/enums";
+import type { MediaType, AuthorGender, GenreCategory } from "@/generated/prisma/enums";
+import { type EntryFilters, buildEntryWhere } from "@/lib/filters";
+import { GENDER_VALUES, CATEGORY_LABELS } from "@/lib/taxonomy";
 
 export type DashboardStats = {
   totals: { total: number; byType: Record<MediaType, number> };
@@ -10,6 +12,11 @@ export type DashboardStats = {
   timelineGranularity: "month" | "year";
   pace: { type: MediaType; perMonth: number }[];
   averageRating: number | null;
+  // v1.1 book breakdowns (see docs/ARCHITECTURE.md).
+  genderSplit: { gender: AuthorGender; count: number }[];
+  categorySplit: { category: GenreCategory; label: string; count: number }[];
+  topSubgenres: { subgenre: string; count: number }[];
+  byPublicationDecade: { decade: string; count: number }[];
 };
 
 const MEDIA: MediaType[] = ["book", "tv", "movie"];
@@ -37,15 +44,20 @@ function monthRange(start: Date, end: Date): string[] {
 
 export async function getDashboardStats(
   userId: string,
+  filters: EntryFilters = {},
 ): Promise<DashboardStats> {
   const entries = await prisma.entry.findMany({
-    where: { userId },
+    where: buildEntryWhere(userId, filters),
     select: {
       mediaType: true,
       status: true,
       rating: true,
       genres: true,
       completedAt: true,
+      authorGender: true,
+      genreCategory: true,
+      subgenres: true,
+      year: true,
     },
   });
 
@@ -56,6 +68,14 @@ export async function getDashboardStats(
   const completions: { type: MediaType; date: Date }[] = [];
   let ratingSum = 0;
   let ratingN = 0;
+
+  // Book-only breakdowns.
+  const genderCounts = new Map<AuthorGender, number>(
+    GENDER_VALUES.map((g) => [g, 0]),
+  );
+  const categoryCounts = new Map<GenreCategory, number>();
+  const subgenreCounts = new Map<string, number>();
+  const decadeCounts = new Map<string, number>();
 
   for (const e of entries) {
     byType[e.mediaType]++;
@@ -70,6 +90,23 @@ export async function getDashboardStats(
       ratingCounts[e.rating - 1]++;
       ratingSum += e.rating;
       ratingN++;
+    }
+
+    if (e.mediaType === "book") {
+      genderCounts.set(e.authorGender, (genderCounts.get(e.authorGender) ?? 0) + 1);
+      if (e.genreCategory) {
+        categoryCounts.set(
+          e.genreCategory,
+          (categoryCounts.get(e.genreCategory) ?? 0) + 1,
+        );
+      }
+      for (const s of e.subgenres) {
+        subgenreCounts.set(s, (subgenreCounts.get(s) ?? 0) + 1);
+      }
+      if (e.year) {
+        const decade = `${Math.floor(e.year / 10) * 10}s`;
+        decadeCounts.set(decade, (decadeCounts.get(decade) ?? 0) + 1);
+      }
     }
   }
 
@@ -131,6 +168,28 @@ export async function getDashboardStats(
     };
   });
 
+  const genderSplit = GENDER_VALUES.map((gender) => ({
+    gender,
+    count: genderCounts.get(gender) ?? 0,
+  }));
+
+  const categorySplit = [...categoryCounts.entries()]
+    .map(([category, count]) => ({
+      category,
+      label: CATEGORY_LABELS[category],
+      count,
+    }))
+    .sort((a, b) => b.count - a.count);
+
+  const topSubgenres = [...subgenreCounts.entries()]
+    .map(([subgenre, count]) => ({ subgenre, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+
+  const byPublicationDecade = [...decadeCounts.entries()]
+    .map(([decade, count]) => ({ decade, count }))
+    .sort((a, b) => parseInt(a.decade, 10) - parseInt(b.decade, 10));
+
   return {
     totals: { total: entries.length, byType },
     completedByType,
@@ -140,5 +199,9 @@ export async function getDashboardStats(
     timelineGranularity,
     pace,
     averageRating: ratingN > 0 ? Number((ratingSum / ratingN).toFixed(2)) : null,
+    genderSplit,
+    categorySplit,
+    topSubgenres,
+    byPublicationDecade,
   };
 }

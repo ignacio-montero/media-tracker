@@ -1,36 +1,36 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Media Tracker
 
-## Getting Started
+Personal, multi-user web app to log books, TV shows, and movies; see
+stats/trends about your own habits; and get AI-generated "what to try next"
+suggestions from your own logged history. Includes a "Greatest Books of All
+Time" reading-goal tracker against the top-500 list.
 
-First, run the development server:
+**Stack:** Next.js 16 (App Router, TypeScript) · PostgreSQL 16 (Docker) ·
+Prisma 7 · Auth.js v5 · Tailwind v4 · Recharts · Google Gemini (recommendations)
+· TMDB + Open Library (metadata).
+
+## Run it locally
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+docker compose up -d          # Postgres (container: media-tracker-db)
+npm run dev                   # http://localhost:3000
+npx prisma migrate dev        # apply schema changes
+npx prisma studio             # inspect data
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Copy `.env.example` to `.env` and set `DATABASE_URL`, `AUTH_SECRET`,
+`TMDB_API_KEY`, and `GEMINI_API_KEY`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Documentation
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- [docs/PRD.md](docs/PRD.md) — what this is and why; scope and success criteria
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — stack, data model, security, deployment plan
+- [docs/DECISIONS.md](docs/DECISIONS.md) — decision log with rationale
+- [docs/NEXT_STEPS.md](docs/NEXT_STEPS.md) — current status and what's next
+- [CLAUDE.md](CLAUDE.md) — dev handoff: run instructions, environment, gotchas
 
-## Learn More
+## Status
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MVP feature-complete and verified live as a local prototype; homelab Docker
+deployment is a deferred, config-only step. See
+[docs/NEXT_STEPS.md](docs/NEXT_STEPS.md).

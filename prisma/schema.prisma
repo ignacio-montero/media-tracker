@@ -1,4 +1,4 @@
-// Media Tracker — data model (see media-tracker-spec.md §4).
+// Media Tracker — data model (see docs/ARCHITECTURE.md).
 // Prisma 7: datasource URL lives in prisma.config.ts (reads DATABASE_URL).
 
 generator client {
@@ -33,6 +33,21 @@ enum EntryStatus {
   dropped
 }
 
+// v1.1 filtering & richer stats — books-only fields (see docs/ARCHITECTURE.md).
+enum AuthorGender {
+  female
+  male
+  non_binary
+  mixed
+  unknown
+}
+
+enum GenreCategory {
+  fiction
+  non_fiction
+  other
+}
+
 model Entry {
   id          String      @id @default(cuid())
   userId      String
@@ -41,7 +56,7 @@ model Entry {
   mediaType   MediaType
   externalId  String? // TMDB / Open Library id when matched
   creator     String? // author / director
-  year        Int?
+  year        Int? // publication year
   genres      String[]    @default([])
   status      EntryStatus @default(want)
   rating      Int? // 1–5, only meaningful when completed
@@ -50,9 +65,19 @@ model Entry {
   updatedAt   DateTime    @updatedAt
   completedAt DateTime? // set when status transitions to completed
 
+  // v1.1: books-only structured metadata. Not nullable for authorGender —
+  // "unknown" IS the no-value member, avoiding null-handling in filters/charts.
+  authorGender       AuthorGender   @default(unknown)
+  genreCategory      GenreCategory? // null = not yet categorized (movies/TV, un-backfilled books)
+  subgenres          String[]      @default([]) // validated app-side against taxonomy.ts
+  metadataUnverified Boolean       @default(false) // true = AI-backfilled, not yet user-confirmed
+
   @@index([userId])
   @@index([userId, mediaType])
   @@index([userId, status])
+  @@index([userId, genreCategory])
+  @@index([userId, authorGender])
+  @@index([userId, completedAt])
 }
 
 model RecommendationCache {

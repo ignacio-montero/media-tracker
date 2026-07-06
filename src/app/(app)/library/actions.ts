@@ -15,9 +15,16 @@ function parseForm(formData: FormData) {
     .map((g) => g.trim())
     .filter(Boolean);
 
+  const subgenresRaw = String(formData.get("subgenres") ?? "");
+  const subgenres = subgenresRaw
+    .split(",")
+    .map((g) => g.trim())
+    .filter(Boolean);
+
   const ratingRaw = formData.get("rating");
   const yearRaw = formData.get("year");
   const completedAtRaw = formData.get("completedAt");
+  const genreCategoryRaw = formData.get("genreCategory");
 
   return entrySchema.safeParse({
     title: formData.get("title"),
@@ -33,6 +40,12 @@ function parseForm(formData: FormData) {
       completedAtRaw === null || completedAtRaw === ""
         ? undefined
         : completedAtRaw,
+    authorGender: formData.get("authorGender") ?? "unknown",
+    genreCategory:
+      genreCategoryRaw === null || genreCategoryRaw === ""
+        ? undefined
+        : genreCategoryRaw,
+    subgenres,
   });
 }
 
@@ -76,6 +89,11 @@ export async function createEntryAction(
       rating: d.rating ?? null,
       notes: d.notes || null,
       completedAt: resolveCompletedAt(d.status, d.completedAt, null),
+      authorGender: d.authorGender,
+      genreCategory: d.genreCategory ?? null,
+      subgenres: d.subgenres,
+      // A user-created row is, by definition, user-confirmed data.
+      metadataUnverified: false,
     },
   });
 
@@ -124,6 +142,11 @@ export async function updateEntryAction(
       rating: d.rating ?? null,
       notes: d.notes || null,
       completedAt,
+      authorGender: d.authorGender,
+      genreCategory: d.genreCategory ?? null,
+      subgenres: d.subgenres,
+      // The user has just reviewed/saved this row — clear the AI-backfill flag.
+      metadataUnverified: false,
     },
   });
 

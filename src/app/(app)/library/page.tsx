@@ -1,52 +1,25 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import {
   MEDIA_ICONS,
-  MEDIA_LABELS,
   STATUS_BADGE,
   STATUS_LABELS,
   stars,
 } from "@/lib/display";
-import { MEDIA_TYPES, ENTRY_STATUSES } from "@/lib/validation";
-import type { MediaType, EntryStatus } from "@/generated/prisma/enums";
 import { DeleteEntryButton } from "@/components/DeleteEntryButton";
-
-const isMediaType = (v: string): v is MediaType =>
-  (MEDIA_TYPES as readonly string[]).includes(v);
-const isStatus = (v: string): v is EntryStatus =>
-  (ENTRY_STATUSES as readonly string[]).includes(v);
+import { FilterBar } from "@/components/FilterBar";
+import { parseEntryFilters, getLibraryEntries } from "@/lib/filters";
 
 export default async function LibraryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ type?: string; status?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const user = await requireUser();
   const sp = await searchParams;
 
-  const typeFilter = sp.type && isMediaType(sp.type) ? sp.type : undefined;
-  const statusFilter =
-    sp.status && isStatus(sp.status) ? sp.status : undefined;
-
-  const entries = await prisma.entry.findMany({
-    where: {
-      userId: user.id,
-      ...(typeFilter ? { mediaType: typeFilter } : {}),
-      ...(statusFilter ? { status: statusFilter } : {}),
-    },
-    orderBy: [{ updatedAt: "desc" }],
-  });
-
-  const buildHref = (patch: { type?: string; status?: string }) => {
-    const params = new URLSearchParams();
-    const type = patch.type ?? typeFilter;
-    const status = patch.status ?? statusFilter;
-    if (type) params.set("type", type);
-    if (status) params.set("status", status);
-    const qs = params.toString();
-    return qs ? `/library?${qs}` : "/library";
-  };
+  const filters = parseEntryFilters(sp);
+  const entries = await getLibraryEntries(user.id, filters);
 
   return (
     <div>
@@ -68,29 +41,20 @@ export default async function LibraryPage({
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="mb-6 flex flex-wrap gap-4 text-sm">
-        <FilterRow
-          label="Type"
-          allHref={buildHref({ type: "" })}
-          allActive={!typeFilter}
-          options={MEDIA_TYPES.map((t) => ({
-            label: MEDIA_LABELS[t],
-            href: buildHref({ type: t }),
-            active: typeFilter === t,
-          }))}
-        />
-        <FilterRow
-          label="Status"
-          allHref={buildHref({ status: "" })}
-          allActive={!statusFilter}
-          options={ENTRY_STATUSES.map((s) => ({
-            label: STATUS_LABELS[s],
-            href: buildHref({ status: s }),
-            active: statusFilter === s,
-          }))}
-        />
-      </div>
+      <FilterBar
+        value={{
+          type: filters.type,
+          status: filters.status,
+          readYear: filters.readYear,
+          readMonth: filters.readMonth,
+          pubFrom: filters.pubFrom,
+          pubTo: filters.pubTo,
+          gender: filters.gender,
+          category: filters.category,
+          subgenres: filters.subgenres,
+          unverified: filters.unverified,
+        }}
+      />
 
       {entries.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-black/15 p-10 text-center text-neutral-500 dark:border-white/15">
@@ -123,11 +87,25 @@ export default async function LibraryPage({
                   >
                     {STATUS_LABELS[e.status]}
                   </span>
+                  {e.metadataUnverified && (
+                    <span
+                      title="AI-suggested metadata, not yet confirmed"
+                      className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-300"
+                    >
+                      Unverified
+                    </span>
+                  )}
                 </div>
                 <div className="mt-1 text-sm text-neutral-500">
                   {e.creator && <span>{e.creator}</span>}
                   {e.creator && e.genres.length > 0 && <span> · </span>}
                   {e.genres.length > 0 && <span>{e.genres.join(", ")}</span>}
+                  {e.creator &&
+                    e.genres.length === 0 &&
+                    e.subgenres.length > 0 && <span> · </span>}
+                  {e.subgenres.length > 0 && (
+                    <span>{e.subgenres.join(", ")}</span>
+                  )}
                 </div>
                 <div className="mt-1 flex flex-wrap items-center gap-3 text-sm">
                   {e.rating && (
@@ -162,38 +140,6 @@ export default async function LibraryPage({
           ))}
         </ul>
       )}
-    </div>
-  );
-}
-
-function FilterRow({
-  label,
-  allHref,
-  allActive,
-  options,
-}: {
-  label: string;
-  allHref: string;
-  allActive: boolean;
-  options: { label: string; href: string; active: boolean }[];
-}) {
-  const chip = (active: boolean) =>
-    `rounded-full px-3 py-1 transition ${
-      active
-        ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900"
-        : "border border-black/15 hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/10"
-    }`;
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <span className="text-neutral-400">{label}:</span>
-      <Link href={allHref} className={chip(allActive)}>
-        All
-      </Link>
-      {options.map((o) => (
-        <Link key={o.href} href={o.href} className={chip(o.active)}>
-          {o.label}
-        </Link>
-      ))}
     </div>
   );
 }

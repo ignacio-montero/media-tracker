@@ -11,14 +11,32 @@ import {
   AreaChart,
   Area,
   Legend,
+  PieChart,
+  Pie,
+  Cell,
 } from "recharts";
 import type { DashboardStats } from "@/lib/stats";
+import { GENDER_LABELS } from "@/lib/taxonomy";
 
 const TYPE_COLORS = {
   book: "#6366f1",
   tv: "#10b981",
   movie: "#f59e0b",
 } as const;
+
+const GENDER_COLORS: Record<string, string> = {
+  female: "#ec4899",
+  male: "#3b82f6",
+  non_binary: "#a855f7",
+  mixed: "#f59e0b",
+  unknown: "#a3a3a3",
+};
+
+const CATEGORY_COLORS: Record<string, string> = {
+  fiction: "#6366f1",
+  non_fiction: "#10b981",
+  other: "#a3a3a3",
+};
 
 function ChartCard({
   title,
@@ -41,6 +59,27 @@ export function DashboardCharts({ stats }: { stats: DashboardStats }) {
   );
   const hasGenres = stats.genreCounts.length > 0;
   const hasRatings = stats.ratingDistribution.some((r) => r.count > 0);
+
+  // v1.1 book breakdowns — books-only, so these can legitimately be empty
+  // even when other stats have data (e.g. a movie-only filtered view).
+  const hasGenderSplit = stats.genderSplit.some((g) => g.count > 0);
+  const hasCategorySplit = stats.categorySplit.some((c) => c.count > 0);
+  const hasTopSubgenres = stats.topSubgenres.length > 0;
+  const hasPubDecade = stats.byPublicationDecade.some((d) => d.count > 0);
+
+  // Pre-map to {name, count, color} so Recharts' Pie can use its standard
+  // `name`/`value` keys with well-typed label/tooltip/legend renderers,
+  // instead of fighting PieLabelRenderProps' generic shape.
+  const genderPieData = stats.genderSplit.map((g) => ({
+    name: GENDER_LABELS[g.gender],
+    count: g.count,
+    color: GENDER_COLORS[g.gender] ?? "#a3a3a3",
+  }));
+  const categoryPieData = stats.categorySplit.map((c) => ({
+    name: c.label,
+    count: c.count,
+    color: CATEGORY_COLORS[c.category] ?? "#a3a3a3",
+  }));
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
@@ -142,6 +181,125 @@ export function DashboardCharts({ stats }: { stats: DashboardStats }) {
                 }}
               />
               <Bar dataKey="count" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <Empty />
+        )}
+      </ChartCard>
+
+      {/* --- v1.1 book breakdowns --- */}
+
+      <ChartCard title="Author gender split (books)">
+        {hasGenderSplit ? (
+          <ResponsiveContainer width="100%" height={240}>
+            <PieChart>
+              <Pie
+                data={genderPieData}
+                dataKey="count"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                outerRadius={80}
+                label
+                isAnimationActive={false}
+              >
+                {genderPieData.map((g) => (
+                  <Cell key={g.name} fill={g.color} />
+                ))}
+              </Pie>
+              <Tooltip
+                contentStyle={{
+                  borderRadius: 8,
+                  border: "1px solid #8888",
+                  fontSize: 12,
+                }}
+              />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+            </PieChart>
+          </ResponsiveContainer>
+        ) : (
+          <Empty />
+        )}
+      </ChartCard>
+
+      <ChartCard title="Fiction vs non-fiction (books)">
+        {hasCategorySplit ? (
+          <ResponsiveContainer width="100%" height={240}>
+            <PieChart>
+              <Pie
+                data={categoryPieData}
+                dataKey="count"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                outerRadius={80}
+                label
+                isAnimationActive={false}
+              >
+                {categoryPieData.map((c) => (
+                  <Cell key={c.name} fill={c.color} />
+                ))}
+              </Pie>
+              <Tooltip
+                contentStyle={{
+                  borderRadius: 8,
+                  border: "1px solid #8888",
+                  fontSize: 12,
+                }}
+              />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+            </PieChart>
+          </ResponsiveContainer>
+        ) : (
+          <Empty />
+        )}
+      </ChartCard>
+
+      <ChartCard title="Top subgenres (books)">
+        {hasTopSubgenres ? (
+          <ResponsiveContainer width="100%" height={240}>
+            <BarChart data={stats.topSubgenres} layout="vertical">
+              <CartesianGrid strokeDasharray="3 3" stroke="#88888822" />
+              <XAxis type="number" allowDecimals={false} fontSize={11} />
+              <YAxis
+                type="category"
+                dataKey="subgenre"
+                width={140}
+                fontSize={11}
+              />
+              <Tooltip
+                cursor={{ fill: "#8888881a" }}
+                contentStyle={{
+                  borderRadius: 8,
+                  border: "1px solid #8888",
+                  fontSize: 12,
+                }}
+              />
+              <Bar dataKey="count" fill="#10b981" radius={[0, 4, 4, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <Empty />
+        )}
+      </ChartCard>
+
+      <ChartCard title="Books by publication decade">
+        {hasPubDecade ? (
+          <ResponsiveContainer width="100%" height={240}>
+            <BarChart data={stats.byPublicationDecade}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#88888822" />
+              <XAxis dataKey="decade" fontSize={11} tickMargin={8} />
+              <YAxis allowDecimals={false} fontSize={11} width={28} />
+              <Tooltip
+                cursor={{ fill: "#8888881a" }}
+                contentStyle={{
+                  borderRadius: 8,
+                  border: "1px solid #8888",
+                  fontSize: 12,
+                }}
+              />
+              <Bar dataKey="count" fill="#6366f1" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         ) : (

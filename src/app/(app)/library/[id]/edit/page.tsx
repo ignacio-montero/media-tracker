@@ -38,6 +38,9 @@ export default async function EditEntryPage({
           completedAt: entry.completedAt
             ? entry.completedAt.toISOString().slice(0, 10)
             : null,
+          authorGender: entry.authorGender,
+          genreCategory: entry.genreCategory,
+          subgenres: entry.subgenres,
         }}
       />
     </div>
