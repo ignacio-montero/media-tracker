@@ -38,6 +38,53 @@ const CATEGORY_COLORS: Record<string, string> = {
   other: "#a3a3a3",
 };
 
+const MONTH_ABBR = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+/** Format a timeline tick: "2021-03" -> "Mar '21"; a plain year is left as-is. */
+function fmtTimelineTick(v: string): string {
+  const m = /^(\d{4})-(\d{2})$/.exec(v);
+  if (!m) return v;
+  return `${MONTH_ABBR[parseInt(m[2], 10) - 1]} '${m[1].slice(2)}`;
+}
+
+// Shared tooltip styling. Explicit white background + dark text so labels stay
+// readable in dark mode (Recharts' default inherits the page's light text,
+// which was washing out on the tooltip's white card).
+const TOOLTIP_STYLE = {
+  contentStyle: {
+    borderRadius: 8,
+    border: "1px solid #8888",
+    fontSize: 12,
+    backgroundColor: "#ffffff",
+    color: "#111111",
+  },
+  labelStyle: { color: "#111111", fontWeight: 500 },
+  itemStyle: { color: "#111111" },
+} as const;
+
+const BAR_CURSOR = { fill: "#8888881a" };
+
+// Only draw an on-slice label for slices big enough to not collide with their
+// neighbours; small slices (e.g. Mixed / Non-binary / Unknown) get their value
+// from the legend instead of overlapping leader lines.
+type PieLabelArg = { percent?: number; value?: number };
+function pieValueLabel(p: PieLabelArg): string {
+  return p.percent !== undefined && p.percent >= 0.08 && p.value !== undefined
+    ? String(p.value)
+    : "";
+}
+
+// Legend entry -> "Name (count)" so every category's value is visible even when
+// its slice is too small to label.
+type LegendEntry = { value?: string; payload?: { count?: number } };
+function pieLegendFormatter(value: string, entry: LegendEntry): string {
+  const count = entry?.payload?.count;
+  return count !== undefined ? `${value} (${count})` : value;
+}
+
 function ChartCard({
   title,
   children,
@@ -91,14 +138,16 @@ export function DashboardCharts({ stats }: { stats: DashboardStats }) {
             <ResponsiveContainer width="100%" height={260}>
               <AreaChart data={stats.timeline}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#88888822" />
-                <XAxis dataKey="month" fontSize={11} tickMargin={8} />
+                <XAxis
+                  dataKey="month"
+                  fontSize={11}
+                  tickMargin={8}
+                  tickFormatter={fmtTimelineTick}
+                />
                 <YAxis allowDecimals={false} fontSize={11} width={28} />
                 <Tooltip
-                  contentStyle={{
-                    borderRadius: 8,
-                    border: "1px solid #8888",
-                    fontSize: 12,
-                  }}
+                  {...TOOLTIP_STYLE}
+                  labelFormatter={(v) => fmtTimelineTick(String(v))}
                 />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
                 <Area
@@ -144,15 +193,9 @@ export function DashboardCharts({ stats }: { stats: DashboardStats }) {
                 dataKey="genre"
                 width={120}
                 fontSize={11}
+                interval={0}
               />
-              <Tooltip
-                cursor={{ fill: "#8888881a" }}
-                contentStyle={{
-                  borderRadius: 8,
-                  border: "1px solid #8888",
-                  fontSize: 12,
-                }}
-              />
+              <Tooltip {...TOOLTIP_STYLE} cursor={BAR_CURSOR} />
               <Bar dataKey="count" fill="#6366f1" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -172,14 +215,7 @@ export function DashboardCharts({ stats }: { stats: DashboardStats }) {
                 tickFormatter={(v) => "★".repeat(v)}
               />
               <YAxis allowDecimals={false} fontSize={11} width={28} />
-              <Tooltip
-                cursor={{ fill: "#8888881a" }}
-                contentStyle={{
-                  borderRadius: 8,
-                  border: "1px solid #8888",
-                  fontSize: 12,
-                }}
-              />
+              <Tooltip {...TOOLTIP_STYLE} cursor={BAR_CURSOR} />
               <Bar dataKey="count" fill="#f59e0b" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -201,21 +237,16 @@ export function DashboardCharts({ stats }: { stats: DashboardStats }) {
                 cx="50%"
                 cy="50%"
                 outerRadius={80}
-                label
+                label={pieValueLabel}
+                labelLine={false}
                 isAnimationActive={false}
               >
                 {genderPieData.map((g) => (
                   <Cell key={g.name} fill={g.color} />
                 ))}
               </Pie>
-              <Tooltip
-                contentStyle={{
-                  borderRadius: 8,
-                  border: "1px solid #8888",
-                  fontSize: 12,
-                }}
-              />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Tooltip {...TOOLTIP_STYLE} />
+              <Legend wrapperStyle={{ fontSize: 12 }} formatter={pieLegendFormatter} />
             </PieChart>
           </ResponsiveContainer>
         ) : (
@@ -234,21 +265,16 @@ export function DashboardCharts({ stats }: { stats: DashboardStats }) {
                 cx="50%"
                 cy="50%"
                 outerRadius={80}
-                label
+                label={pieValueLabel}
+                labelLine={false}
                 isAnimationActive={false}
               >
                 {categoryPieData.map((c) => (
                   <Cell key={c.name} fill={c.color} />
                 ))}
               </Pie>
-              <Tooltip
-                contentStyle={{
-                  borderRadius: 8,
-                  border: "1px solid #8888",
-                  fontSize: 12,
-                }}
-              />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Tooltip {...TOOLTIP_STYLE} />
+              <Legend wrapperStyle={{ fontSize: 12 }} formatter={pieLegendFormatter} />
             </PieChart>
           </ResponsiveContainer>
         ) : (
@@ -258,24 +284,18 @@ export function DashboardCharts({ stats }: { stats: DashboardStats }) {
 
       <ChartCard title="Top subgenres (books)">
         {hasTopSubgenres ? (
-          <ResponsiveContainer width="100%" height={240}>
+          <ResponsiveContainer width="100%" height={320}>
             <BarChart data={stats.topSubgenres} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="#88888822" />
               <XAxis type="number" allowDecimals={false} fontSize={11} />
               <YAxis
                 type="category"
                 dataKey="subgenre"
-                width={140}
+                width={150}
                 fontSize={11}
+                interval={0}
               />
-              <Tooltip
-                cursor={{ fill: "#8888881a" }}
-                contentStyle={{
-                  borderRadius: 8,
-                  border: "1px solid #8888",
-                  fontSize: 12,
-                }}
-              />
+              <Tooltip {...TOOLTIP_STYLE} cursor={BAR_CURSOR} />
               <Bar dataKey="count" fill="#10b981" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -291,14 +311,7 @@ export function DashboardCharts({ stats }: { stats: DashboardStats }) {
               <CartesianGrid strokeDasharray="3 3" stroke="#88888822" />
               <XAxis dataKey="decade" fontSize={11} tickMargin={8} />
               <YAxis allowDecimals={false} fontSize={11} width={28} />
-              <Tooltip
-                cursor={{ fill: "#8888881a" }}
-                contentStyle={{
-                  borderRadius: 8,
-                  border: "1px solid #8888",
-                  fontSize: 12,
-                }}
-              />
+              <Tooltip {...TOOLTIP_STYLE} cursor={BAR_CURSOR} />
               <Bar dataKey="count" fill="#6366f1" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>

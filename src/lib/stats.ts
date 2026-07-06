@@ -42,6 +42,76 @@ function monthRange(start: Date, end: Date): string[] {
   return keys;
 }
 
+/**
+ * Bucket completions into a timeline. Pure + exported so it can be unit-tested
+ * without a DB.
+ * - `readYear` set → that year's 12 months (within-year progress).
+ * - otherwise → monthly for a span ≤24 months, yearly beyond (extended to the
+ *   current year so an ongoing history reads up to "now").
+ */
+export function computeTimeline(
+  completions: { type: MediaType; date: Date }[],
+  readYear?: number,
+): {
+  timeline: DashboardStats["timeline"];
+  timelineGranularity: "month" | "year";
+} {
+  if (completions.length === 0) {
+    return { timeline: [], timelineGranularity: "month" };
+  }
+
+  const buckets = new Map<string, { book: number; tv: number; movie: number }>();
+
+  if (readYear !== undefined) {
+    for (let m = 0; m < 12; m++) {
+      buckets.set(`${readYear}-${String(m + 1).padStart(2, "0")}`, {
+        book: 0,
+        tv: 0,
+        movie: 0,
+      });
+    }
+    for (const c of completions) {
+      const b = buckets.get(monthKey(c.date));
+      if (b) b[c.type]++;
+    }
+    return {
+      timeline: [...buckets.entries()].map(([month, v]) => ({ month, ...v })),
+      timelineGranularity: "month",
+    };
+  }
+
+  const dates = completions.map((c) => c.date);
+  const min = new Date(Math.min(...dates.map((d) => d.getTime())));
+  const max = new Date(Math.max(...dates.map((d) => d.getTime()), Date.now()));
+  let timelineGranularity: "month" | "year" = "month";
+
+  if (monthRange(min, max).length > 24) {
+    timelineGranularity = "year";
+    const startY = min.getUTCFullYear();
+    const endY = Math.max(max.getUTCFullYear(), new Date().getUTCFullYear());
+    for (let y = startY; y <= endY; y++) {
+      buckets.set(String(y), { book: 0, tv: 0, movie: 0 });
+    }
+    for (const c of completions) {
+      const b = buckets.get(String(c.date.getUTCFullYear()));
+      if (b) b[c.type]++;
+    }
+  } else {
+    for (const key of monthRange(min, max)) {
+      buckets.set(key, { book: 0, tv: 0, movie: 0 });
+    }
+    for (const c of completions) {
+      const b = buckets.get(monthKey(c.date));
+      if (b) b[c.type]++;
+    }
+  }
+
+  return {
+    timeline: [...buckets.entries()].map(([month, v]) => ({ month, ...v })),
+    timelineGranularity,
+  };
+}
+
 export async function getDashboardStats(
   userId: string,
   filters: EntryFilters = {},
@@ -120,38 +190,10 @@ export async function getDashboardStats(
     count,
   }));
 
-  // --- Timeline: completion buckets by type. Monthly for short histories,
-  // yearly once the span exceeds ~2 years so the axis stays readable. ---
-  let timeline: DashboardStats["timeline"] = [];
-  let timelineGranularity: "month" | "year" = "month";
-  if (completions.length > 0) {
-    const dates = completions.map((c) => c.date);
-    const min = new Date(Math.min(...dates.map((d) => d.getTime())));
-    const max = new Date(Math.max(...dates.map((d) => d.getTime()), Date.now()));
-    const buckets = new Map<string, { book: number; tv: number; movie: number }>();
-
-    if (monthRange(min, max).length > 24) {
-      timelineGranularity = "year";
-      const startY = min.getUTCFullYear();
-      const endY = Math.max(max.getUTCFullYear(), new Date().getUTCFullYear());
-      for (let y = startY; y <= endY; y++) {
-        buckets.set(String(y), { book: 0, tv: 0, movie: 0 });
-      }
-      for (const c of completions) {
-        const b = buckets.get(String(c.date.getUTCFullYear()));
-        if (b) b[c.type]++;
-      }
-    } else {
-      for (const key of monthRange(min, max)) {
-        buckets.set(key, { book: 0, tv: 0, movie: 0 });
-      }
-      for (const c of completions) {
-        const b = buckets.get(monthKey(c.date));
-        if (b) b[c.type]++;
-      }
-    }
-    timeline = [...buckets.entries()].map(([month, v]) => ({ month, ...v }));
-  }
+  const { timeline, timelineGranularity } = computeTimeline(
+    completions,
+    filters.readYear,
+  );
 
   // --- Pace: avg completions per active month, per type ---
   const pace = MEDIA.map((type) => {

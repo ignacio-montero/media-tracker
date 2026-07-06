@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MEDIA_TYPES, ENTRY_STATUSES } from "@/lib/validation";
 import { MEDIA_LABELS, STATUS_LABELS } from "@/lib/display";
 import {
@@ -91,16 +91,11 @@ export function FilterBar({
     return qs ? `${pathname}?${qs}` : pathname;
   };
 
-  const toggleInList = (
-    key: "gender" | "cat" | "sub",
-    current: string[] | undefined,
-    val: string,
-  ) => {
-    const list = current ?? [];
-    const next = list.includes(val)
-      ? list.filter((v) => v !== val)
-      : [...list, val];
-    return buildHref({ [key]: next.length ? next.join(",") : null });
+  // Commit a whole multi-select dimension in one navigation.
+  const applyList = (key: "gender" | "cat" | "sub", values: string[]) => {
+    window.location.href = buildHref({
+      [key]: values.length ? values.join(",") : null,
+    });
   };
 
   const pushPubRange = (from: string, to: string) => {
@@ -143,12 +138,13 @@ export function FilterBar({
           Filters
         </h2>
         {hasAnyFilter && (
-          <Link
-            href={pathname}
+          <button
+            type="button"
+            onClick={() => (window.location.href = pathname)}
             className="rounded-full border border-black/15 px-3 py-1 text-xs transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/10"
           >
             Clear all
-          </Link>
+          </button>
         )}
       </div>
 
@@ -282,44 +278,151 @@ export function FilterBar({
         </label>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <span className="pt-1 text-neutral-400">Author gender:</span>
-        {GENDER_VALUES.map((g) => (
-          <Link
-            key={g}
-            href={toggleInList("gender", value.gender, g)}
-            className={chip(!!value.gender?.includes(g))}
-          >
-            {GENDER_LABELS[g]}
-          </Link>
-        ))}
+      <div className="flex flex-wrap items-center gap-3">
+        <MultiSelect
+          label="Author gender"
+          options={GENDER_VALUES.map((g) => ({ value: g, label: GENDER_LABELS[g] }))}
+          selected={value.gender ?? []}
+          onApply={(next) => applyList("gender", next)}
+        />
+        <MultiSelect
+          label="Category"
+          options={(Object.keys(CATEGORY_LABELS) as GenreCategory[]).map((c) => ({
+            value: c,
+            label: CATEGORY_LABELS[c],
+          }))}
+          selected={value.category ?? []}
+          onApply={(next) => applyList("cat", next)}
+        />
+        <MultiSelect
+          label="Subgenre"
+          options={subgenreOptions.map((s) => ({ value: s, label: s }))}
+          selected={value.subgenres ?? []}
+          onApply={(next) => applyList("sub", next)}
+          emptyHint={
+            selectedCategories.length === 0
+              ? undefined
+              : "Showing subgenres for the selected categories"
+          }
+        />
       </div>
+    </div>
+  );
+}
 
-      <div className="flex flex-wrap gap-2">
-        <span className="pt-1 text-neutral-400">Category:</span>
-        {(Object.keys(CATEGORY_LABELS) as GenreCategory[]).map((c) => (
-          <Link
-            key={c}
-            href={toggleInList("cat", value.category, c)}
-            className={chip(!!value.category?.includes(c))}
+/**
+ * Compact multi-select. Holds pending checkbox state locally and commits the
+ * whole selection in a single navigation on Apply, so picking several values in
+ * one dimension doesn't trigger a page reload per click (and doesn't paper the
+ * screen with dozens of always-visible chips). Closes on outside click.
+ */
+function MultiSelect({
+  label,
+  options,
+  selected,
+  onApply,
+  emptyHint,
+}: {
+  label: string;
+  options: { value: string; label: string }[];
+  selected: string[];
+  onApply: (next: string[]) => void;
+  emptyHint?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [pending, setPending] = useState<string[]>(selected);
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Every commit path (Apply, Clear all) navigates via a hard `window.location`
+  // change, which remounts this component and re-runs the `useState(selected)`
+  // initializer — so pending stays in sync with the committed URL without a
+  // resync effect (which would otherwise trip react-hooks/set-state-in-effect).
+  const selectedKey = selected.join(",");
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
+  const toggle = (v: string) =>
+    setPending((p) => (p.includes(v) ? p.filter((x) => x !== v) : [...p, v]));
+
+  const dirty = pending.join(",") !== selectedKey;
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 transition ${
+          selected.length > 0
+            ? "border-neutral-900 bg-neutral-900 text-white dark:border-white dark:bg-white dark:text-neutral-900"
+            : "border-black/15 hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/10"
+        }`}
+      >
+        <span>{label}</span>
+        {selected.length > 0 && (
+          <span
+            className={`rounded-full px-1.5 text-xs ${
+              selected.length > 0
+                ? "bg-white/25 dark:bg-black/20"
+                : "bg-neutral-200 dark:bg-neutral-700"
+            }`}
           >
-            {CATEGORY_LABELS[c]}
-          </Link>
-        ))}
-      </div>
+            {selected.length}
+          </span>
+        )}
+        <span aria-hidden className="text-xs opacity-60">
+          ▾
+        </span>
+      </button>
 
-      {subgenreOptions.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          <span className="pt-1 text-neutral-400">Subgenre:</span>
-          {subgenreOptions.map((s) => (
-            <Link
-              key={s}
-              href={toggleInList("sub", value.subgenres, s)}
-              className={chip(!!value.subgenres?.includes(s))}
+      {open && (
+        <div className="absolute left-0 z-20 mt-1 w-60 rounded-xl border border-black/10 bg-white p-2 shadow-lg dark:border-white/10 dark:bg-neutral-900">
+          {emptyHint && (
+            <p className="px-2 pt-1 pb-2 text-xs text-neutral-400">{emptyHint}</p>
+          )}
+          <div className="max-h-60 space-y-0.5 overflow-auto">
+            {options.map((o) => (
+              <label
+                key={o.value}
+                className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-black/5 dark:hover:bg-white/10"
+              >
+                <input
+                  type="checkbox"
+                  checked={pending.includes(o.value)}
+                  onChange={() => toggle(o.value)}
+                  className="h-4 w-4 rounded border-black/20 dark:border-white/20"
+                />
+                <span>{o.label}</span>
+              </label>
+            ))}
+          </div>
+          <div className="mt-2 flex items-center justify-between border-t border-black/10 pt-2 dark:border-white/10">
+            <button
+              type="button"
+              onClick={() => setPending([])}
+              disabled={pending.length === 0}
+              className="rounded-md px-2 py-1 text-xs text-neutral-500 transition hover:bg-black/5 disabled:opacity-40 dark:hover:bg-white/10"
             >
-              {s}
-            </Link>
-          ))}
+              Clear
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onApply(pending);
+                setOpen(false);
+              }}
+              disabled={!dirty}
+              className="rounded-md bg-neutral-900 px-3 py-1 text-xs font-medium text-white transition hover:bg-neutral-700 disabled:opacity-40 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200"
+            >
+              Apply
+            </button>
+          </div>
         </div>
       )}
     </div>
