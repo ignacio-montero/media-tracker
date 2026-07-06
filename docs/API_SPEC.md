@@ -5,6 +5,26 @@ app has almost no REST surface (server components + server actions do the work),
 so "the contract" is mostly: URL param grammar, shared types, and the backfill
 script interface. For the data model see [ARCHITECTURE.md](ARCHITECTURE.md)._
 
+## v1.2 — Search / autocomplete endpoint
+
+`GET /api/search` (auth-guarded) — reused for the add-form typeahead. Modes:
+
+| Query | Returns | Notes |
+|---|---|---|
+| `?q=<title>&type=<all\|book\|tv\|movie>` | `{ results: SearchResult[], tmdbConfigured: boolean }` | Existing. `book`→Open Library, `movie`/`tv`→TMDB, `all`→both. |
+| `&author=<name>` | (same) | **New.** Scopes Open Library (book) results to that author; ignored for TMDB. |
+| `?creatorFor=<externalId>` | `{ creator: string \| null }` | **New.** On-select director/creator enrichment for a TMDB item (`externalId` = `"movie:123"` / `"tv:456"`), via `getTmdbCreator`. `q`/`type` ignored in this mode. |
+
+`SearchResult` (shared, `src/lib/search/types.ts`): `{ source, externalId,
+mediaType, title, creator?, year?, genres[], imageUrl?, overview? }` — unchanged.
+TMDB search results carry no `creator` (hence `creatorFor`); Open Library
+results do.
+
+**Client (`TitleAutocomplete`) contract:** debounced ≥2-char queries; sends
+`author` only for `type=book`; guards stale responses (AbortController + request
+id). On select, `EntryForm` autofills title/creator/year/genres/externalId (all
+editable) and enriches TMDB director via `creatorFor`.
+
 ## v1.1 — Filter contract
 
 ### `EntryFilters` (shared type, `src/lib/filters.ts`)

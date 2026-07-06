@@ -110,6 +110,50 @@ dashboard stat/chart recomputes over the filtered subset.
 - `EntryForm` gains an author-gender `<select>` and category/subgenre controls
   (subgenre options derive from the selected category via `taxonomy.ts`).
 
+## v1.2 — Inline autocomplete on the add form (design)
+
+Implements the PRD's "Inline autocomplete". A thin typeahead over the existing
+`/api/search`; see [API_SPEC.md](API_SPEC.md) for the exact contract.
+
+### Backend
+
+- **`searchOpenLibrary(query, author?)`** — when `author` is passed, add Open
+  Library's `author` search field alongside `title`, scoping book suggestions to
+  that author.
+- **`/api/search` gains two optional modes** (still auth-guarded, results still
+  capped at 12/source):
+  - `author=` → forwarded to `searchOpenLibrary`; **books only** (TMDB search
+    can't filter by director, so it's ignored for screen titles).
+  - `creatorFor=<externalId>` → returns `{ creator }` via the existing
+    `getTmdbCreator`, for on-select **director enrichment** of a chosen
+    movie/TV title (whose search result carries no creator). When present,
+    `q`/`type` are ignored.
+
+### Frontend
+
+- **`TitleAutocomplete`** (new `"use client"` component) owns the Title
+  `<input name="title">` plus a suggestion dropdown:
+  - Debounced (~250 ms), fires at ≥2 chars, queries
+    `/api/search?q=&type=&author=` where `type` = the form's current media type
+    and `author` = the current Creator value (sent for books only).
+  - **Stale-response guard**: `AbortController` + a monotonic request id, so only
+    the latest response renders (out-of-order results can't clobber).
+  - Keyboard: ↑/↓ move the highlight, Enter selects, Esc closes; click selects;
+    blur closes (deferred so a click lands first). ARIA combobox/listbox/option
+    with `aria-activedescendant`.
+  - Each row shows cover thumb · title · creator · year (cover is **display
+    only** — the Entry model stores no image, so nothing to autofill there).
+  - Emits `onSelect(result)`; suppresses reopening right after a selection so
+    autofill doesn't retrigger a search.
+- **`EntryForm` refactor**: lift `title`, `creator`, `year`, `genres`,
+  `mediaType`, `externalId` into controlled `useState` (the other fields stay
+  uncontrolled). On `onSelect`, set those from the result — genres joined to the
+  comma field, `externalId` set — and for a movie/TV pick with no creator, fire
+  the `creatorFor` enrichment and fill Creator when it resolves. **Every field
+  stays editable.** Editing the Title by hand after a selection clears
+  `externalId` (it no longer points at a specific external work). The v1.1
+  structured fields (category/subgenre/gender) are untouched by autofill.
+
 ## Application structure
 
 Single Next.js app: App Router pages for UI, Route Handlers (`/app/api/*`) for

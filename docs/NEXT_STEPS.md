@@ -74,7 +74,28 @@ and fill those in (see CLAUDE.md's Environment section).
    only" filter + badges + edit-to-confirm** flow; a dedicated bulk-review
    screen was not built (nice-to-have, not required).
 
-2. **Homelab deployment (deferred by design).** Docker Compose currently only
+2. **v1.2 — Inline autocomplete on the add form — BUILT & verified (2026-07-06).**
+   Typeahead on the manual add form (books/movies/TV) with book suggestions
+   scoped to the Creator when set; selecting autofills title/creator/year/
+   genres/externalId (all editable) and enriches TMDB director on select. Built
+   by backend + frontend agents in parallel → tester → critic. Critic fixes
+   applied: enrichment-race guard, `creatorFor` numeric-id validation (blocks a
+   TMDB path-traversal), Enter picks the first suggestion instead of submitting,
+   and Creator-change re-scopes book results. 66/66 tests, lint/build clean.
+   See [PRD.md](PRD.md) / [ARCHITECTURE.md](ARCHITECTURE.md) / [API_SPEC.md](API_SPEC.md) → "v1.2".
+
+   **Follow-ups (non-blocking):**
+   - No component-level tests for `TitleAutocomplete`/`EntryForm` async paths
+     (debounce, stale-guard, keyboard nav) — the repo has no jsdom/RTL harness;
+     verified live instead. Worth adding a testing-library setup if this area
+     grows.
+   - Open Library `title=` matches whole words, so partial fragments ("war and
+     pea") return nothing until the word completes. Switching book search to
+     OL's general `q=` would improve partial matching at some relevance cost.
+   - Autofilled genres from a *book* result aren't saved (books use the v1.1
+     category/subgenre fields, not the freeform genres input) — harmless, noted.
+
+3. **Homelab deployment (deferred by design).** Docker Compose currently only
    runs Postgres; the app runs via `npm run dev`. Moving to the Mini PC means
    adding `app` + `caddy` services to `docker-compose.yml` and setting up
    Tailscale — scoped from the start as a config-only step with **no app code

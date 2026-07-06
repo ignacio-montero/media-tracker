@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { searchOpenLibrary } from "@/lib/search/openlibrary";
-import { searchTmdb, TmdbNotConfiguredError } from "@/lib/search/tmdb";
+import { searchTmdb, TmdbNotConfiguredError, getTmdbCreator } from "@/lib/search/tmdb";
 import type { SearchResult } from "@/lib/search/types";
 
 export async function GET(request: Request) {
@@ -11,8 +11,20 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
+
+  const creatorFor = (searchParams.get("creatorFor") ?? "").trim();
+  if (creatorFor) {
+    try {
+      const creator = await getTmdbCreator(creatorFor);
+      return NextResponse.json({ creator: creator ?? null });
+    } catch {
+      return NextResponse.json({ creator: null });
+    }
+  }
+
   const q = (searchParams.get("q") ?? "").trim();
   const type = searchParams.get("type") ?? "all"; // all | book | tv | movie
+  const author = (searchParams.get("author") ?? "").trim();
 
   if (!q) {
     return NextResponse.json({ results: [], tmdbConfigured: true });
@@ -25,7 +37,7 @@ export async function GET(request: Request) {
   const tasks: Promise<SearchResult[]>[] = [];
 
   if (wantBooks) {
-    tasks.push(searchOpenLibrary(q).catch(() => []));
+    tasks.push(searchOpenLibrary(q, author || undefined).catch(() => []));
   }
   if (wantScreen) {
     tasks.push(

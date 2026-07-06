@@ -109,7 +109,11 @@ export async function getTmdbCreator(
   externalId: string,
 ): Promise<string | undefined> {
   const [kind, id] = externalId.split(":");
-  if (!id) return undefined;
+  // `id` is interpolated into the TMDB request path, and `externalId` can come
+  // straight from a client-supplied `creatorFor` query param. Require a numeric
+  // id so a value like "movie:../../account" can't path-traverse into arbitrary
+  // TMDB endpoints using the app's API key.
+  if (!id || !/^\d+$/.test(id)) return undefined;
 
   if (kind === "movie") {
     const d = await tmdbFetch<MovieDetails>(`/movie/${id}`, {

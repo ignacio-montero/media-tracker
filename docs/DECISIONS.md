@@ -98,3 +98,21 @@ Notable decisions and their rationale, most recent last.
   author** before keying (drops co-authors/translators like
   "Tolstoy, Louise Maude"). The Gemini list-recommendation ("For You") remains
   the higher-quality, on-demand option.
+
+## v1.2 inline autocomplete (2026-07-06, planning)
+
+- **Reuse `/api/search`, don't build a new suggestion source** — it already
+  returns the exact shape (title, creator, year, genres, cover, externalId) for
+  books (Open Library) and movies/TV (TMDB). The add-form typeahead is a thin
+  client over it; extend the endpoint with an optional `author` param that maps
+  to Open Library's `author` search field.
+- **Author-filter is books-only** — TMDB's search endpoint can't scope by
+  director (director is only recoverable via a separate lookup after selection),
+  so the "limit suggestions to this author" behavior applies to book search
+  only. Movies/TV still get title autocomplete, just unscoped.
+- **Keep the dedicated `/library/search` page** — inline typeahead is additive
+  (fast known-item entry); the search page keeps the cover-browse experience.
+  Not retiring it avoids a larger change for a feature meant to reduce friction.
+- **Autofill is metadata-only** — selecting a suggestion fills title/creator/
+  year/genres/cover/externalId (all overridable), but not the v1.1 structured
+  book fields (category/subgenre/gender), which the metadata APIs don't carry.

@@ -137,6 +137,54 @@ see Decisions log.)
 - After backfill + a review pass, the large majority of the 363 books have
   publication year, category, and gender populated.
 
+## v1.2 — Inline autocomplete on the add form (planned)
+
+**Goal.** When adding an entry manually, typing a title surfaces live
+autocomplete suggestions; picking one autofills the metadata fields (still
+editable). Removes the "type it all by hand" friction and reduces typos/dupes,
+without forcing users through the separate search page.
+
+**Reuses existing infra.** `/api/search` already returns the needed shape
+(title, creator, year, genres, cover, externalId) for books (Open Library) and
+movies/TV (TMDB). This feature surfaces those as a typeahead on the add form.
+
+### Behavior
+
+- [ ] As the user types the **Title** (debounced, ~2+ chars), a dropdown shows
+      matching suggestions for the currently-selected **Type** (book → Open
+      Library, movie/TV → TMDB).
+- [ ] **Author scoping (books):** if the **Creator** field is already filled,
+      book suggestions are limited to that author. (Screen titles can't be
+      scoped by director — TMDB search has no such filter — so the author
+      constraint applies to books only.)
+- [ ] Selecting a suggestion **autofills** title, creator, year, genres, cover
+      reference, and the external id. **Every field stays editable** — the user
+      can override any autofilled value before saving.
+- [ ] Keyboard-navigable (↑/↓/Enter/Esc), click to select, dismiss on blur.
+- [ ] Graceful states: no matches, TMDB-not-configured (books still work),
+      request errors, and stale-response guarding (out-of-order results).
+
+### Scope boundaries for v1.2
+
+- Autocomplete covers **all three types**; the **author-filter is books-only**
+  (API constraint above).
+- Autofill covers metadata fields only. The v1.1 **structured book fields**
+  (category, subgenre, author gender) aren't in the metadata APIs, so they stay
+  user-set (or a later inference step) — selecting a suggestion doesn't touch
+  them.
+- The dedicated **`/library/search` page stays** (browse-with-covers); inline
+  typeahead is additive, for fast known-item entry.
+
+### Success criteria
+
+- Typing "war and pea" with author "Tolstoy" already filled suggests War and
+  Peace by Tolstoy; selecting it fills creator/year/genres, and the user can
+  still change the year before saving.
+- Typing a movie title with Type=Movie suggests TMDB matches and autofills on
+  select; no author-filter is applied to screen titles.
+- With no TMDB key, book autocomplete still works and screen autocomplete
+  degrades to a clear "not configured" state rather than erroring.
+
 ## Explicitly out of scope (v1)
 
 - Shared/group lists or any cross-user visibility

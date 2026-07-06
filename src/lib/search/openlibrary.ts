@@ -14,17 +14,35 @@ type OpenLibraryResponse = {
 };
 
 /**
- * Search Open Library by title. No API key required.
- * Docs: https://openlibrary.org/dev/docs/api/search
+ * Build the Open Library search URL. Pure/exported for testability.
+ * When `author` is a non-empty (trimmed) string, scopes results to that
+ * author alongside the title search.
  */
-export async function searchOpenLibrary(query: string): Promise<SearchResult[]> {
+export function buildOpenLibrarySearchUrl(query: string, author?: string): URL {
   const url = new URL("https://openlibrary.org/search.json");
   url.searchParams.set("title", query);
+  const trimmedAuthor = author?.trim();
+  if (trimmedAuthor) {
+    url.searchParams.set("author", trimmedAuthor);
+  }
   url.searchParams.set("limit", "12");
   url.searchParams.set(
     "fields",
     "key,title,author_name,first_publish_year,subject,cover_i",
   );
+  return url;
+}
+
+/**
+ * Search Open Library by title, optionally scoped to an author. No API key
+ * required.
+ * Docs: https://openlibrary.org/dev/docs/api/search
+ */
+export async function searchOpenLibrary(
+  query: string,
+  author?: string,
+): Promise<SearchResult[]> {
+  const url = buildOpenLibrarySearchUrl(query, author);
 
   const res = await fetch(url, {
     headers: { "User-Agent": "MediaTracker/0.1 (personal project)" },

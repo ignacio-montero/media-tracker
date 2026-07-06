@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import Link from "next/link";
 import type { EntryFormState } from "@/app/(app)/library/actions";
 import { MEDIA_TYPES, ENTRY_STATUSES } from "@/lib/validation";
@@ -11,6 +11,8 @@ import {
   subgenresFor,
   type GenreCategory,
 } from "@/lib/taxonomy";
+import { TitleAutocomplete } from "@/components/TitleAutocomplete";
+import type { SearchResult } from "@/lib/search/types";
 
 export type EntryFormValues = {
   title?: string;
@@ -68,6 +70,17 @@ export function EntryForm({
     initial?.subgenres ?? [],
   );
 
+  // Lifted controlled state for the fields autocomplete selection can autofill.
+  const [title, setTitle] = useState(initial?.title ?? "");
+  const [creator, setCreator] = useState(initial?.creator ?? "");
+  const [year, setYear] = useState(initial?.year ?? "");
+  const [genres, setGenres] = useState(initial?.genres?.join(", ") ?? "");
+  const [externalId, setExternalId] = useState(initial?.externalId ?? "");
+
+  // Guards against a stale creatorFor enrichment fetch landing after a newer
+  // selection/edit.
+  const enrichmentIdRef = useRef(0);
+
   const isBook = mediaType === "book";
   const subgenreOptions = genreCategory
     ? subgenresFor(genreCategory as GenreCategory)
@@ -79,18 +92,67 @@ export function EntryForm({
     );
   };
 
+  // Editing the title by hand after a selection means it no longer refers to
+  // that specific external work.
+  // Any newer selection OR manual edit must invalidate an in-flight creator
+  // enrichment, so a late director fetch can't clobber fresher data.
+  function invalidateEnrichment() {
+    enrichmentIdRef.current++;
+  }
+
+  function handleTitleChange(next: string) {
+    invalidateEnrichment();
+    setTitle(next);
+    if (externalId) setExternalId("");
+  }
+
+  function handleMediaTypeChange(next: string) {
+    invalidateEnrichment();
+    setMediaType(next);
+    // A media-type switch invalidates any external match too.
+    if (externalId) setExternalId("");
+  }
+
+  function handleSelect(result: SearchResult) {
+    // Bump the enrichment id for EVERY selection (not just the enriching
+    // branch) so a prior movie/TV director fetch can't land on this result.
+    const requestId = ++enrichmentIdRef.current;
+    setTitle(result.title);
+    if (result.creator) setCreator(result.creator);
+    if (result.year !== undefined) setYear(result.year);
+    setGenres(result.genres.join(", "));
+    setExternalId(result.externalId);
+
+    // Movie/TV results carry no creator — best-effort enrichment via the
+    // creatorFor lookup. Ignore failures; the field stays user-editable.
+    if (!result.creator && (result.mediaType === "movie" || result.mediaType === "tv")) {
+      fetch(`/api/search?creatorFor=${encodeURIComponent(result.externalId)}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data: { creator: string | null } | null) => {
+          if (requestId !== enrichmentIdRef.current) return; // stale
+          if (data?.creator) setCreator(data.creator);
+        })
+        .catch(() => {
+          // Best-effort only — leave Creator as-is on failure.
+        });
+    }
+  }
+
   return (
     <form action={formAction} className="space-y-4">
       <div>
         <label htmlFor="title" className={labelClass}>
           Title
         </label>
-        <input
+        <TitleAutocomplete
           id="title"
           name="title"
           required
-          defaultValue={initial?.title ?? ""}
-          className={inputClass}
+          mediaType={mediaType}
+          author={creator}
+          value={title}
+          onChange={handleTitleChange}
+          onSelect={handleSelect}
         />
       </div>
 
@@ -103,7 +165,7 @@ export function EntryForm({
             id="mediaType"
             name="mediaType"
             value={mediaType}
-            onChange={(e) => setMediaType(e.target.value)}
+            onChange={(e) => handleMediaTypeChange(e.target.value)}
             className={inputClass}
           >
             {MEDIA_TYPES.map((t) => (
@@ -140,7 +202,11 @@ export function EntryForm({
           <input
             id="creator"
             name="creator"
-            defaultValue={initial?.creator ?? ""}
+            value={creator}
+            onChange={(e) => {
+              invalidateEnrichment();
+              setCreator(e.target.value);
+            }}
             className={inputClass}
           />
         </div>
@@ -154,7 +220,10 @@ export function EntryForm({
             type="number"
             min={0}
             max={3000}
-            defaultValue={initial?.year ?? ""}
+            value={year}
+            onChange={(e) =>
+              setYear(e.target.value === "" ? "" : Number(e.target.value))
+            }
             className={inputClass}
           />
         </div>
@@ -246,7 +315,8 @@ export function EntryForm({
           <input
             id="genres"
             name="genres"
-            defaultValue={initial?.genres?.join(", ") ?? ""}
+            value={genres}
+            onChange={(e) => setGenres(e.target.value)}
             placeholder="Sci-fi, Thriller"
             className={inputClass}
           />
@@ -299,7 +369,7 @@ export function EntryForm({
         />
       </div>
 
-      <input type="hidden" name="externalId" value={initial?.externalId ?? ""} />
+      <input type="hidden" name="externalId" value={externalId} />
 
       {state?.error && (
         <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">
