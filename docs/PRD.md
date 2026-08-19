@@ -19,7 +19,7 @@ actually read/watched.
 
 ## Target users
 
-- The owner (Nacho) and a small circle of friends/family (e.g. the demo user), each
+- The owner and a small circle of friends/family, each
   with their own private account. No public users, no scale requirements beyond
   a handful of concurrent people.
 
@@ -130,7 +130,7 @@ see Decisions log.)
 
 ### Success criteria
 
-- the demo user can filter her completed books to e.g. "Non-fiction · History · Female
+- A user can filter their completed books to e.g. "Non-fiction · History · Female
   authors · read in 2023" and get the correct set.
 - The dashboard, with that filter applied, recomputes all stats and shows a
   gender split and fiction/non-fiction split consistent with the filtered set.
@@ -191,7 +191,7 @@ movies/TV (TMDB). This feature surfaces those as a typeahead on the add form.
 - Rules-based or collaborative-filtering recommendation engines
 - Social features (following, sharing, comments)
 - Mobile app / native clients — web only, responsive layout is enough
-- Import from Goodreads/Letterboxd/etc. (one-off scripted ingests like the demo user's
+- Import from Goodreads/Letterboxd/etc. (one-off scripted ingests like the demo
   book list are scripts, not a product feature)
 - Google/social sign-in — email/password only for v1
 - Notifications/reminders

@@ -27,11 +27,12 @@ all 13 routes with no errors.
 
 ## Real data loaded
 
-- **the demo user's account** (`demo@example.com` / `<redacted-password>`) — main demo
-  account, **363 real books** (2017–2026) ingested from `reading-list.rtf`
-  (local file, not in git). "+" in the source = favourite → 5★; rest unrated.
-- `test@example.com` / `<redacted-password>` — kept, empty.
-- `second@example.com` / `<redacted-password>` — kept empty; used to verify isolation.
+- **Demo account** (`demo@example.com`) — main demo account, **363 real books**
+  (2017–2026) ingested from a local RTF reading list (not in git). "+" in the
+  source = favourite → 5★; rest unrated.
+- `test@example.com` — kept, empty.
+- `second@example.com` — kept empty; used to verify isolation.
+- Passwords for all three come from `SEED_PASSWORD` in your local `.env`.
 - The 500-book Greatest Books reference list is seeded from
   `the_greatest_books_of_all_time.csv`.
 

@@ -7,8 +7,16 @@ import { PrismaClient } from "../src/generated/prisma/client";
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
-const LAUREN_EMAIL = "demo@example.com";
-const LAUREN_PASSWORD = "<redacted-password>";
+const DEMO_EMAIL = process.env.SEED_EMAIL ?? "demo@example.com";
+// Never hardcode a working password: this account is created by the script, so a
+// literal here would be a live credential published in the repo.
+const seedPassword = process.env.SEED_PASSWORD;
+if (!seedPassword) {
+  throw new Error(
+    "SEED_PASSWORD must be set (e.g. SEED_PASSWORD=… npx tsx scripts/ingest-books.ts <txt>)",
+  );
+}
+const DEMO_PASSWORD: string = seedPassword;
 
 const MONTHS: Record<string, number> = {
   january: 0,
@@ -46,7 +54,7 @@ function parseBooks(text: string): ParsedBook[] {
       if (y) headerYear = parseInt(y[1], 10);
       continue;
     }
-    if (/^lauren/i.test(line)) continue; // document title
+    if (/^[a-z]+'?s? books/i.test(line)) continue; // document title
 
     const favourite = /\+\s*$/.test(line);
 
@@ -102,20 +110,20 @@ async function main() {
   const text = readFileSync(path, "utf8");
   const books = parseBooks(text);
 
-  // Create (or reset) the demo user's account.
-  const passwordHash = await bcrypt.hash(LAUREN_PASSWORD, 12);
-  const lauren = await prisma.user.upsert({
-    where: { email: LAUREN_EMAIL },
-    create: { email: LAUREN_EMAIL, passwordHash },
+  // Create (or reset) the demo account.
+  const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 12);
+  const demoUser = await prisma.user.upsert({
+    where: { email: DEMO_EMAIL },
+    create: { email: DEMO_EMAIL, passwordHash },
     update: { passwordHash },
   });
 
   // Idempotent: clear any prior ingest for the demo user.
-  await prisma.entry.deleteMany({ where: { userId: lauren.id } });
+  await prisma.entry.deleteMany({ where: { userId: demoUser.id } });
 
   await prisma.entry.createMany({
     data: books.map((b) => ({
-      userId: lauren.id,
+      userId: demoUser.id,
       title: b.title,
       mediaType: "book" as const,
       creator: b.author,
@@ -140,7 +148,7 @@ async function main() {
   const favs = books.filter((b) => b.favourite).length;
   const years = new Set(books.map((b) => b.completedAt.getUTCFullYear()));
   console.log(
-    `Ingested ${books.length} books for ${LAUREN_EMAIL} (${favs} favourites, ` +
+    `Ingested ${books.length} books for ${DEMO_EMAIL} (${favs} favourites, ` +
       `${years.size} years). Removed ${removedDemo} demo entries from test account.`,
   );
 }

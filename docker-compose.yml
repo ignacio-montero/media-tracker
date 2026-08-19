@@ -9,10 +9,15 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: media
-      POSTGRES_PASSWORD: media_dev_password
+      # Dev-only throwaway credential; override via POSTGRES_PASSWORD in .env.
+      # Note Postgres only reads this at first init — changing it after the
+      # volume exists has no effect (recreate the volume to rotate).
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-media_dev_password}
       POSTGRES_DB: media_tracker
     ports:
-      - "5432:5432"
+      # Loopback ONLY. A bare "5432:5432" binds 0.0.0.0, which exposes the
+      # database to every device on whatever network you're joined to.
+      - "127.0.0.1:5432:5432"
     volumes:
       - media_tracker_pgdata:/var/lib/postgresql/data
     healthcheck:

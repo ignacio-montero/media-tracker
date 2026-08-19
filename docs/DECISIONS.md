@@ -33,7 +33,7 @@ Notable decisions and their rationale, most recent last.
 - **Greatest Books matching by normalized title** (`src/lib/normalize.ts`), not
   external ids — the CSV list has no ids; normalization must stay identical
   between seeding and matching.
-- **the demo user's ingest: "+" markers become 5★ ratings, everything else unrated** —
+- **Book-list ingest: "+" markers become 5★ ratings, everything else unrated** —
   faithful to how the source list encodes favourites without inventing ratings.
 
 ## v1 polish pass (2026-07-06)

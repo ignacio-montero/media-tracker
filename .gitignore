@@ -45,5 +45,5 @@ next-env.d.ts
 # keep the example env committed
 !.env.example
 
-# personal data — used once locally to seed the DB, never committed
-reading-list.rtf
+# personal data — source files used once locally to seed the DB, never committed
+*.rtf

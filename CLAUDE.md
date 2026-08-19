@@ -34,12 +34,12 @@ verified working in the local `.env`.
 ## Data files & scripts
 - `the_greatest_books_of_all_time.csv` — source for the 500 list →
   `npx tsx scripts/seed-greatbooks.ts`.
-- `reading-list.rtf` (local only, not in git) — source for the demo user's 363-book
-  library → `textutil -convert txt -output /tmp/l.txt reading-list.rtf &&
-  npx tsx scripts/ingest-books.ts /tmp/l.txt`.
-- Accounts: `demo@example.com` / `<redacted-password>` (main demo, real data),
-  `test@example.com` / `<redacted-password>` (empty), `second@example.com` /
-  `<redacted-password>` (empty, isolation test).
+- A local-only RTF reading list (not in git) — source for the demo user's
+  363-book library → `textutil -convert txt -output /tmp/l.txt <source>.rtf &&
+  SEED_PASSWORD=… npx tsx scripts/ingest-books.ts /tmp/l.txt`.
+- Accounts: `demo@example.com` (main demo, real data), `test@example.com`
+  (empty), `second@example.com` (empty, isolation test). Passwords are NOT
+  stored in this repo — set `SEED_PASSWORD` in your local `.env`.
 - Full DB reset: `docker compose down -v && docker compose up -d &&
   npx prisma migrate dev`, then re-seed + re-ingest as above.
 

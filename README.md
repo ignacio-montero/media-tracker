@@ -34,3 +34,14 @@ Copy `.env.example` to `.env` and set `DATABASE_URL`, `AUTH_SECRET`,
 MVP feature-complete and verified live as a local prototype; homelab Docker
 deployment is a deferred, config-only step. See
 [docs/NEXT_STEPS.md](docs/NEXT_STEPS.md).
+
+## Data & license
+
+Application code is released under the [MIT License](LICENSE).
+
+> ⚠️ **Unresolved before publication:** `the_greatest_books_of_all_time.csv` (500 rows)
+> ships in this repo with no recorded provenance. Its `Id` / `Global Rank` / `Global Score`
+> schema resembles thegreatestbooks.org. Confirm the source and its terms, then either
+> replace this block with proper attribution or regenerate the list from a clearly
+> licensed dataset. Redistributing a scraped dataset without attribution is a
+> copyright/ToS risk.

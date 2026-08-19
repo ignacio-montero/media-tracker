@@ -24,6 +24,11 @@ export async function registerAction(
 
   const email = parsed.data.email.toLowerCase();
 
+  // ACCEPTED RISK — user enumeration. Returning a distinct "already exists"
+  // message lets an attacker probe which emails hold accounts. The privacy-
+  // preserving alternative is a generic success response plus an email
+  // confirmation flow; that needs a mail provider, which this single-user app
+  // deliberately does not have. Revisit if registration is ever opened up.
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
     return { error: "An account with that email already exists" };
@@ -52,6 +57,10 @@ export async function registerAction(
   return undefined;
 }
 
+// ACCEPTED RISK — no login rate limiting. There is no throttle on failed
+// attempts, so credential brute-forcing is bounded only by bcrypt's cost factor
+// of 12 (~250ms/attempt), which is a real but partial brake. A production
+// deployment should add per-IP and per-account attempt limits.
 export async function loginAction(
   _prev: AuthFormState,
   formData: FormData,

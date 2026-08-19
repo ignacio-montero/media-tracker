@@ -82,7 +82,7 @@ the backfill script (constrains the model), and the filter parser. Like
 
 ### AI backfill — `scripts/backfill-metadata.ts` (run via `npx tsx`)
 
-- Idempotent, user-scoped (default: the demo user). Targets **books where
+- Idempotent, user-scoped (default: the demo account). Targets **books where
   `genreCategory IS NULL`** so re-runs don't clobber confirmed data.
 - Batches ~30 books/call to Gemini (`@google/genai`, structured JSON output like
   `recommendations.ts`), passing each entry's `id` + title + author and the full
