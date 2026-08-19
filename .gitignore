@@ -47,3 +47,7 @@ next-env.d.ts
 
 # personal data — source files used once locally to seed the DB, never committed
 *.rtf
+
+# Third-party ranking dataset — scraped from thegreatestbooks.org, not ours to
+# redistribute. Kept locally; see docs/GREAT_BOOKS_DATA.md.
+the_greatest_books_of_all_time.csv

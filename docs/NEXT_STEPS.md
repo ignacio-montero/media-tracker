@@ -34,7 +34,7 @@ all 13 routes with no errors.
 - `second@example.com` — kept empty; used to verify isolation.
 - Passwords for all three come from `SEED_PASSWORD` in your local `.env`.
 - The 500-book Greatest Books reference list is seeded from
-  `the_greatest_books_of_all_time.csv`.
+  a user-supplied ranking CSV (see docs/GREAT_BOOKS_DATA.md).
 
 ## How to pick this back up
 

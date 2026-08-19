@@ -32,7 +32,8 @@ if the daemon isn't up). `docker compose` plugin is symlinked into `~/.docker/cl
 verified working in the local `.env`.
 
 ## Data files & scripts
-- `the_greatest_books_of_all_time.csv` — source for the 500 list →
+- A ranking CSV (NOT committed — third-party data; see docs/GREAT_BOOKS_DATA.md)
+  — source for the Great Books list →
   `npx tsx scripts/seed-greatbooks.ts`.
 - A local-only RTF reading list (not in git) — source for the demo user's
   363-book library → `textutil -convert txt -output /tmp/l.txt <source>.rtf &&

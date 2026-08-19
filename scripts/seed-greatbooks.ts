@@ -11,7 +11,21 @@ const prisma = new PrismaClient({ adapter });
 type Row = Record<string, string>;
 
 async function main() {
-  const csv = readFileSync("the_greatest_books_of_all_time.csv", "utf8");
+  // The ranking dataset is NOT committed — it is third-party content scraped
+  // from thegreatestbooks.org and not ours to redistribute. See
+  // docs/GREAT_BOOKS_DATA.md for the expected columns and how to supply one.
+  const csvPath =
+    process.env.GREAT_BOOKS_CSV ?? "the_greatest_books_of_all_time.csv";
+  let csv: string;
+  try {
+    csv = readFileSync(csvPath, "utf8");
+  } catch {
+    throw new Error(
+      `Ranking dataset not found at "${csvPath}".\n` +
+        "This file is deliberately not committed — see docs/GREAT_BOOKS_DATA.md " +
+        "for the required columns. Set GREAT_BOOKS_CSV to point at your own copy.",
+    );
+  }
   const rows = parse(csv, {
     columns: true,
     skip_empty_lines: true,

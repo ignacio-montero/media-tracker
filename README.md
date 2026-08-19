@@ -39,9 +39,8 @@ deployment is a deferred, config-only step. See
 
 Application code is released under the [MIT License](LICENSE).
 
-> ⚠️ **Unresolved before publication:** `the_greatest_books_of_all_time.csv` (500 rows)
-> ships in this repo with no recorded provenance. Its `Id` / `Global Rank` / `Global Score`
-> schema resembles thegreatestbooks.org. Confirm the source and its terms, then either
-> replace this block with proper attribution or regenerate the list from a clearly
-> licensed dataset. Redistributing a scraped dataset without attribution is a
-> copyright/ToS risk.
+The optional "Great Books" reference list is **not** included in this repository. The
+list this project was built against came from [thegreatestbooks.org](https://thegreatestbooks.org/),
+whose ranking is their own work and not ours to redistribute — so the seeder reads a CSV
+you supply. See [docs/GREAT_BOOKS_DATA.md](docs/GREAT_BOOKS_DATA.md) for the expected
+columns. Everything else in the app works without it.

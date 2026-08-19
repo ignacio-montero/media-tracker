@@ -30,7 +30,8 @@ set when status → completed; user-editable as "Date read")
 (JSON: array of {title, media_type, reason})
 
 **GreatBook** — reference table for the "Greatest Books of All Time" top-500
-list, seeded from `the_greatest_books_of_all_time.csv`. Matching against user
+list, seeded from a user-supplied ranking CSV (docs/GREAT_BOOKS_DATA.md).
+Matching against user
 entries is by normalized title (`src/lib/normalize.ts` — normalization MUST
 match between seeding and matching).
 
